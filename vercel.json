@@ -11,5 +11,8 @@
       "src": "/(.*)",
       "dest": "main.py"
     }
-  ]
+  ],
+  "env": {
+    "TELEGRAM_API_TOKEN": "8083477712:AAH17i6FK8h6ZySsTfRkRFRzo_sq6-iKRCY"
+  }
 }
