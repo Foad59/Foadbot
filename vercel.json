@@ -2,17 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "main.py",
+      "src": "telegram_bot.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "main.py"
+      "dest": "telegram_bot.py"
     }
-  ],
-  "env": {
-    "TELEGRAM_API_TOKEN": "8083477712:AAH17i6FK8h6ZySsTfRkRFRzo_sq6-iKRCY"
-  }
+  ]
 }
