@@ -28,10 +28,10 @@ def format_volume(volume):
 
 def get_tokens_from_api(api_url, params=None):
     try:
-        response = requests.get(api_url, params=params)
+        response = requests.get(api_url, params=params, timeout=10)
         response.raise_for_status()
         return response.json()
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         print(f"Error fetching data from {api_url}: {e}")
         return []
 
@@ -97,33 +97,47 @@ def market_cap_received(update, context):
     min_market_cap = user_data[chat_id]['market_cap']
 
     # Fetch tokens based on the selected blockchain
-    if blockchain == 'ethereum':
-        tokens = get_tokens_from_api(API_COIN_GECKO_URL, params={'vs_currency': 'usd', 'order': 'market_cap_desc', 'per_page': 100})
-    elif blockchain == 'solana':
-        tokens = get_tokens_from_api(API_SOLSCAN_URL, params={'limit': 100})
-    elif blockchain == 'bnb':
-        tokens = get_tokens_from_api(API_COIN_GECKO_URL, params={'vs_currency': 'usd', 'category': 'bnb-chain', 'per_page': 100})
-    elif blockchain == 'polygon':
-        tokens = get_tokens_from_api(API_COIN_GECKO_URL, params={'vs_currency': 'usd', 'category': 'polygon', 'per_page': 100})
-    elif blockchain == 'sui':
-        tokens = get_tokens_from_api(API_MYSTEN_LABS_URL)
+    tokens = []
+    try:
+        if blockchain == 'ethereum':
+            tokens = get_tokens_from_api(API_COIN_GECKO_URL, params={'vs_currency': 'usd', 'order': 'market_cap_desc', 'per_page': 100})
+        elif blockchain == 'solana':
+            tokens = get_tokens_from_api(API_SOLSCAN_URL, params={'limit': 100})
+        elif blockchain == 'bnb':
+            tokens = get_tokens_from_api(API_COIN_GECKO_URL, params={'vs_currency': 'usd', 'category': 'bnb-chain', 'per_page': 100})
+        elif blockchain == 'polygon':
+            tokens = get_tokens_from_api(API_COIN_GECKO_URL, params={'vs_currency': 'usd', 'category': 'polygon', 'per_page': 100})
+        elif blockchain == 'sui':
+            tokens = get_tokens_from_api(API_MYSTEN_LABS_URL)
+    except Exception as e:
+        context.bot.send_message(chat_id, f"Error fetching tokens for {blockchain.capitalize()}: {e}")
+        return
 
     # Process tokens
     found_tokens = []
     for token in tokens:
-        symbol = token.get('symbol', 'N/A')
-        volume_now = token.get('volume', 0)
-        market_cap = token.get('market_cap', 0)
-        price = token.get('price', 0)
-        percent_change = token.get('price_change_percentage_24h', 0)
+        try:
+            symbol = token.get('symbol', 'N/A')
+            volume_now = token.get('volume', 0)
+            market_cap = token.get('market_cap', 0)
+            price = token.get('price', 0)
+            percent_change = token.get('price_change_percentage_24h', 0)
 
-        if market_cap >= min_market_cap and percent_change >= percent_increase:
-            formatted_volume = format_volume(volume_now)
-            found_tokens.append(f"Token: {symbol}\nPrice: ${price}\nVolume: {formatted_volume}\nMarket Cap: {market_cap}\nChange: {percent_change:.2f}%\n")
+            if market_cap >= min_market_cap and percent_change >= percent_increase:
+                formatted_volume = format_volume(volume_now)
+                found_tokens.append(f"Token: {symbol}
+Price: ${price}
+Volume: {formatted_volume}
+Market Cap: {market_cap}
+Change: {percent_change:.2f}%
+")
+        except Exception as e:
+            print(f"Error processing token: {e}")
 
     # Send results to the user
     if found_tokens:
-        message = "\n".join(found_tokens)
+        message = "
+".join(found_tokens)
     else:
         message = "No tokens found matching your criteria."
     context.bot.send_message(chat_id, message)
@@ -135,9 +149,12 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(blockchain_selected, pattern="^(ethereum|solana|bnb|polygon|sui)$"))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, time_received))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, percent_received))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, market_cap_received))
 
     updater.start_polling()
     updater.idle()
 
 if __name__ == '__main__':
     main()
+
